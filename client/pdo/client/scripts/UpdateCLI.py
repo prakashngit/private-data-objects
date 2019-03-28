@@ -26,6 +26,7 @@ from pdo.contract import Contract
 from pdo.common.keys import ServiceKeys
 from pdo.service_client.enclave import EnclaveServiceClient
 import pdo.service_client.service_data.eservice as db
+from pdo.contract.response import ContractResponse
 
 ## -----------------------------------------------------------------
 ## -----------------------------------------------------------------
@@ -70,6 +71,15 @@ def LocalMain(config, message) :
         logger.error('missing configuration section %s', str(ke))
         sys.exit(-1)
 
+    # ---------- load the eservice database ----------
+    if os.path.exists(service_config['EnclaveServiceDatabaseFile']):
+        logger.info('loading eservice database')
+        try:
+            db.load_database(service_config['EnclaveServiceDatabaseFile'])
+        except Exception as e:
+            logger.error('Error loading eservice database %s', str(e))
+            sys.exit(-1)
+
     # ---------- load the contract information file ----------
     try:
         save_file = contract_config['SaveFile']
@@ -101,13 +111,6 @@ def LocalMain(config, message) :
         logger.info('Using eservice database to look up service URL for the contract enclave')
         try:
             eservice_to_use = random.choice(service_config['EnclaveServiceNames'])
-            # load the eservice database
-            if os.path.exists(service_config['EnclaveServiceDatabaseFile']):
-                try:
-                    db.load_database(service_config['EnclaveServiceDatabaseFile'])
-                except Exception as e:
-                    logger.error('Error loading eservice database %s', str(e))
-                    sys.exit(-1)
             enclave_client = db.get_client_by_name(eservice_to_use)
         except Exception as e:
             logger.error('Unable to get the eservice client using the eservice database: %s', str(e)) 
@@ -140,6 +143,7 @@ def LocalMain(config, message) :
     else :
         mlist = InputIterator(config.get('Identity', '') + "> ")
 
+    commit_dependencies = []
     for msg in mlist :
         if not msg :
             continue
@@ -147,7 +151,7 @@ def LocalMain(config, message) :
         logger.info('send message <%s> to contract', msg)
 
         try :
-            update_request = contract.create_update_request(contract_invoker_keys, enclave_client, msg)
+            update_request = contract.create_update_request(contract_invoker_keys, msg, enclave_client)
             update_response = update_request.evaluate()
             if update_response.status :
                 print(update_response.result)
@@ -168,16 +172,34 @@ def LocalMain(config, message) :
         if not update_response.state_changed :
             continue
 
-        try :
-            logger.debug("sending to ledger")
-            txnid = update_response.submit_update_transaction(ledger_config)
-        except Exception as e :
-            logger.error('failed to save the new state; %s', str(e))
+        contract.set_state(update_response.raw_state)
+
+        # asynchronously submit the commit task: (a commit task replicates change-set and submits the corresponding transaction)
+        try:
+            commit_id = update_response.commit_asynchronously(ledger_config, wait=30, \
+                dependency_list_commit_ids=commit_dependencies, use_ledger=True)
+            commit_dependencies = [commit_id]
+        except Exception as e:
+            logger.exception('failed to asynchronously start replication and transaction submission:' + str(e))
+            ContractResponse.exit_commit_workers()
             sys.exit(-1)
 
-        contract.set_state(update_response.raw_state)
         contract.contract_state.save_to_cache(data_dir = data_directory)
+    
+    if len(commit_dependencies) > 0:
+        # wait for the last commit to finish
+        try:
+            txn_id = ContractResponse.wait_for_commit(commit_dependencies[0], use_ledger=True)
+            if txn_id is None:
+                logger.error("Did not receive txn id for the final commit")
+                ContractResponse.exit_commit_workers()
+                sys.exit(-1)
+        except Exception as e:
+            logger.error("Error while waiting for final commit: %s", str(e))
+            ContractResponse.exit_commit_workers()
+            sys.exit(-1)
 
+    ContractResponse.exit_commit_workers()
     sys.exit(0)
 
 

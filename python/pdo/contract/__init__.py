@@ -20,7 +20,19 @@ __all__ = [
     "ContractResponse",
     "ContractRequest",
     "register_contract",
-    "add_enclave_to_contract"
+    "add_enclave_to_contract",
+    "ReplicationRequest",
+    "start_replication_service",
+    "stop_replication_service",
+    "wait_for_replication_task",
+    "add_replication_task",
+    "get_replication_exceptions", 
+    "TransactionRequest",
+    "start_transaction_processing_service",
+    "stop_transacion_processing_service",
+    "add_transaction_task",
+    "wait_for_transaction_task",
+    "are_there_failed_transactions"
 ]
 
 from pdo.contract.code import ContractCode
@@ -29,3 +41,7 @@ from pdo.contract.message import ContractMessage
 from pdo.contract.request import ContractRequest
 from pdo.contract.response import ContractResponse
 from pdo.contract.state import ContractState
+from pdo.contract.replication import ReplicationRequest, start_replication_service, stop_replication_service, \
+    add_replication_task, wait_for_replication_task, are_there_failed_replication_tasks
+from pdo.contract.transaction import TransactionRequest, start_transaction_processing_service, stop_transacion_processing_service, \
+    add_transaction_task, wait_for_transaction_task, are_there_failed_transactions

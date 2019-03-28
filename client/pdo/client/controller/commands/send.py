@@ -67,7 +67,7 @@ def send_to_contract(state, save_file, message, eservice_url=None, quiet=False, 
 
     # ---------- send the message to the enclave service ----------
     try :
-        update_request = contract.create_update_request(client_keys, eservice_client, message)
+        update_request = contract.create_update_request(client_keys, message, eservice_client)
         update_response = update_request.evaluate()
         if update_response.status :
             if not quiet : print(update_response.result)

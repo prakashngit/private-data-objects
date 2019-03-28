@@ -33,6 +33,7 @@ from pdo.contract import add_enclave_to_contract
 from pdo.service_client.enclave import EnclaveServiceClient
 from pdo.service_client.provisioning import ProvisioningServiceClient
 import pdo.service_client.service_data.eservice as db
+from pdo.contract.response import ContractResponse
 
 logger = logging.getLogger(__name__)
 
@@ -87,10 +88,30 @@ def CreateContract(ledger_config, client_keys, enclaveclients, contract) :
 
     logger.info('Contract state created successfully')
 
-    logger.info('Saving the initial contract state in the ledger...')
+    logger.info('Commiting the initial state')
 
-    cclinit_result = initialize_response.submit_initialize_transaction(ledger_config)
+    # submit the commit task: (a commit task replicates change-set and submits the corresponding transaction)
+    try:
+        commit_id = initialize_response.commit_asynchronously(ledger_config, wait=30, use_ledger=True)
+    except Exception as e:
+        logger.exception('failed to asynchronously start replication and transaction submission:' + str(e))
+        ContractResponse.exit_commit_workers()
+        sys.exit(-1)
 
+    # wait for the commit to finish
+    try:
+        txn_id = ContractResponse.wait_for_commit(commit_id, use_ledger=True)
+        if txn_id is None:
+            logger.error("Did not receive txn id for the initial commit")
+            ContractResponse.exit_commit_workers()
+            sys.exit(-1)
+    except Exception as e:
+        logger.error("Error while waiting for initial commit: %s", str(e))
+        ContractResponse.exit_commit_workers()
+        sys.exit(-1)
+
+    # exit the commit workers
+    ContractResponse.exit_commit_workers()
 ## -----------------------------------------------------------------
 ## -----------------------------------------------------------------
 def LocalMain(commands, config) :
