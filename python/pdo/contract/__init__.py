@@ -26,7 +26,7 @@ __all__ = [
     "stop_replication_service",
     "wait_for_replication_task",
     "add_replication_task",
-    "get_replication_exceptions", 
+    "get_replication_exceptions",
     "TransactionRequest",
     "start_transaction_processing_service",
     "stop_transacion_processing_service",

@@ -24,6 +24,7 @@ from pdo.service_client.enclave import EnclaveServiceClient
 from pdo.client.controller.commands.contract import get_contract
 from pdo.client.controller.commands.eservice import get_eservice
 import pdo.service_client.service_data.eservice as eservice_db
+from pdo.contract.response import ContractResponse
 
 __all__ = ['command_send']
 
@@ -80,21 +81,27 @@ def send_to_contract(state, save_file, message, eservice_url=None, quiet=False, 
     data_directory = state.get(['Contract', 'DataDirectory'])
     ledger_config = state.get(['Sawtooth'])
 
-    if update_response.state_changed and commit :
-        try :
-            logger.debug("send update to the ledger")
-            extraparams = {}
-            if wait :
-                extraparams['wait'] = 30
-            txnid = update_response.submit_update_transaction(ledger_config, **extraparams)
-        except Exception as e :
-            raise Exception('failed to save the new state to the ledger; {0}'.format(str(e)))
+    contract.set_state(update_response.raw_state)
 
-        try :
-            contract.set_state(update_response.raw_state)
-            contract.contract_state.save_to_cache(data_dir = data_directory)
-        except Exception as e :
-            logger.exception('failed to save the new state in the cache')
+    if update_response.state_changed and commit :
+        # asynchronously submit the commit task: (a commit task replicates change-set and submits the corresponding transaction)
+        try:
+            commit_id = update_response.commit_asynchronously(ledger_config, wait=30, use_ledger=True)
+        except Exception as e:
+            raise Exception('failed to submit commit: %s', str(e))
+
+        # wait for the commit to finish
+        try:
+            txn_id = ContractResponse.wait_for_commit(commit_id, use_ledger=True)
+            if txn_id is None:
+                raise Exception("Did not receive txn id for the send operation")
+        except Exception as e:
+            raise Exception("Error while waiting for commit: %s", str(e))
+
+    try :
+        contract.contract_state.save_to_cache(data_dir = data_directory)
+    except Exception as e :
+        logger.exception('failed to save the new state in the cache')
 
     return update_response.result
 

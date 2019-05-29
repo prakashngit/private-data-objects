@@ -162,36 +162,40 @@ def __transaction_worker__():
             transaction_request = response.transaction_request
             txn_dependencies = []
 
-            # Check if implicit commit dependencies have been met, no need to add them to txn_dependencies, this will be taken care of by the submitter
-            if response.operation != 'initialize' and request_number > 0:
-                txnid = __transaction_dependencies__.FindDependencyLocally(contract_id, crypto.byte_array_to_base64(response.old_state_hash))
-                if txnid is None:
+            # check for commit dependencies (due to commits arising from the same client)
+            if transaction_request.dependency_list_commit_ids is not None:
+                
+                # Check for implicit dependency: (check to ensure that the transaction corresponding to the old_state_hash 
+                # was committed (by the same client)). Don't have to add them to txn_dependencies, this will be added by submitter
+                if response.operation != 'initialize' and request_number > 0:
+                    txnid = __transaction_dependencies__.FindDependencyLocally(contract_id, crypto.byte_array_to_base64(response.old_state_hash))
+                    if txnid is None:
+                        break
+
+                # check for explicit dependencies: (specfied by the client during the commit call)
+                fail_explit_commit_dependencies = False
+                for commit_id_temp in transaction_request.dependency_list_commit_ids:
+
+                    # check if the transaction for commit_id_temp failed, if so we will not submit transaction for this request ever
+                    if commit_id_temp[2] in __ids_of_failed_transactions__:
+                        logger.info("Aborting transaction for request %d since one or more dependencies have failed", request_number)
+                        __ids_of_failed_transactions__.add(request_number)
+                        del rep_completed_but_txn_not_submitted_updates[contract_id][request_number] # remove the task from the pending list
+                        fail_explit_commit_dependencies = True
+                        break
+
+                    txnid = __transaction_dependencies__.FindDependencyLocally(commit_id_temp[0], crypto.byte_array_to_base64(commit_id_temp[1]))
+                    if txnid :
+                        txn_dependencies.append(txnid)
+                    else:
+                        fail_explit_commit_dependencies = True
+                        break
+
+                if fail_explit_commit_dependencies:
                     break
-
-            # check for explicit commit dependencies (specfied explicitly by the client during the commit call)
-            fail_explit_commit_dependencies = False
-            for commit_id_temp in transaction_request.dependency_list_commit_ids:
-
-                # check if the transaction for commit_id_temp failed, if so we will not submit transaction for this request ever
-                if commit_id_temp[2] in __ids_of_failed_transactions__:
-                    logger.info("Aborting transaction for request %d since one or more dependencies have failed", request_number)
-                    __ids_of_failed_transactions__.add(request_number)
-                    del rep_completed_but_txn_not_submitted_updates[contract_id][request_number] # remove the task from the pending list
-                    fail_explit_commit_dependencies = True
-                    break
-
-                txnid = __transaction_dependencies__.FindDependencyLocally(commit_id_temp[0], crypto.byte_array_to_base64(commit_id_temp[1]))
-                if txnid :
-                    txn_dependencies.append(txnid)
-                else:
-                    fail_explit_commit_dependencies = True
-                    break
-
-            if fail_explit_commit_dependencies:
-                break
 
             # OK, all commit dependencies are met. Add any transaction dependecies explicitly specified by client durind the commit call.
-            # these will be checked by the submitter
+            # (transactions can come from other clients). These will be checked by the submitter
             for txn_id in transaction_request.dependency_list_txnids:
                 txn_dependencies.append(txn_id)
 

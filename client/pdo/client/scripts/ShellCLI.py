@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 from pdo.client.controller.contract_controller import ContractController
 import pdo.common.utility as putils
+from pdo.contract.response import ContractResponse
 
 ## -----------------------------------------------------------------
 ## -----------------------------------------------------------------
@@ -38,6 +39,7 @@ def LocalMain(config) :
     shell.cmdloop()
     print("")
 
+    ContractResponse.exit_commit_workers()
     sys.exit(0)
 
 ## XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

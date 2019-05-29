@@ -94,7 +94,7 @@ def CreateContract(ledger_config, client_keys, enclaveclients, contract) :
     try:
         commit_id = initialize_response.commit_asynchronously(ledger_config, wait=30, use_ledger=True)
     except Exception as e:
-        logger.exception('failed to asynchronously start replication and transaction submission:' + str(e))
+        logger.exception('failed to submit commit: %s', str(e))
         ContractResponse.exit_commit_workers()
         sys.exit(-1)
 

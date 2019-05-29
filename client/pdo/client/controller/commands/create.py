@@ -29,6 +29,7 @@ from pdo.contract import ContractState
 from pdo.contract import Contract
 from pdo.contract import register_contract
 from pdo.contract import add_enclave_to_contract
+from pdo.contract.response import ContractResponse
 
 __all__ = ['command_create']
 
@@ -90,9 +91,19 @@ def __create_contract(ledger_config, client_keys, preferred_eservice_client, ese
 
     logger.info('Contract state created successfully')
 
-    logger.info('Saving the initial contract state in the ledger...')
+    # submit the commit task: (a commit task replicates change-set and submits the corresponding transaction)
+    try:
+        commit_id = initialize_response.commit_asynchronously(ledger_config, wait=30, use_ledger=True)
+    except Exception as e:
+        raise Exception('failed to submit commit: %s', str(e))
 
-    cclinit_result = initialize_response.submit_initialize_transaction(ledger_config, wait=30.0)
+    # wait for the commit to finish
+    try:
+        txn_id = ContractResponse.wait_for_commit(commit_id, use_ledger=True)
+        if txn_id is None:
+            raise Exception("Did not receive txn id for the initial commit")
+    except Exception as e:
+        raise Exception("Error while waiting for commit: %s", str(e))
 
 ## -----------------------------------------------------------------
 ## -----------------------------------------------------------------

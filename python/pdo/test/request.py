@@ -357,7 +357,7 @@ def UpdateTheContract(config, contract, enclaves, contract_invoker_keys) :
                     # In the latter case, the dependencies are automatically identified during commit
                 commit_dependencies = [commit_id]
             except Exception as e:
-                logger.exception('failed to asynchronously start replication and transaction submission:' + str(e))
+                logger.error('failed to submit commit: %s', str(e))
                 ErrorShutdown()
 
             logger.debug('update state')

@@ -113,11 +113,11 @@ def LocalMain(config, message) :
             eservice_to_use = random.choice(service_config['EnclaveServiceNames'])
             enclave_client = db.get_client_by_name(eservice_to_use)
         except Exception as e:
-            logger.error('Unable to get the eservice client using the eservice database: %s', str(e)) 
-            sys.exit(-1)   
+            logger.error('Unable to get the eservice client using the eservice database: %s', str(e))
+            sys.exit(-1)
     else:
         try:
-            enclave_url = service_config['PreferredEnclaveService'] 
+            enclave_url = service_config['PreferredEnclaveService']
         except Exception as e:
             logger.error('missing configuration parameter %s', str(ke))
             sys.exit(-1)
@@ -126,7 +126,7 @@ def LocalMain(config, message) :
         except Exception as e :
             logger.error('unable to connect to enclave service; %s', str(e))
             sys.exit(-1)
-        
+
     logger.info('contact enclave service at %s', enclave_client.ServiceURL)
 
     try :
@@ -180,12 +180,12 @@ def LocalMain(config, message) :
                 dependency_list_commit_ids=commit_dependencies, use_ledger=True)
             commit_dependencies = [commit_id]
         except Exception as e:
-            logger.exception('failed to asynchronously start replication and transaction submission:' + str(e))
+            logger.error('failed to submit commit: %s', str(e))
             ContractResponse.exit_commit_workers()
             sys.exit(-1)
 
         contract.contract_state.save_to_cache(data_dir = data_directory)
-    
+
     if len(commit_dependencies) > 0:
         # wait for the last commit to finish
         try:
@@ -314,18 +314,18 @@ def Main() :
             'ProvisioningServiceURLs' : [],
             'EnclaveServiceDatabaseFile' : None
         }
-    
+
     if options.eservice_name:
         config['Service']['EnclaveServiceNames'] = options.eservice_name
     if options.eservice_db:
-        config['Service']['EnclaveServiceDatabaseFile'] = options.eservice_db    
+        config['Service']['EnclaveServiceDatabaseFile'] = options.eservice_db
     if options.enclave :
         if options.enclave == 'random' :
             options.enclave = random.choice(config['Service'].get('EnclaveServiceURLs',['http://localhost:7001']))
         config['Service']['PreferredEnclaveService'] = options.enclave
         # we will not use database
         config['Service']['EnclaveServiceNames'] = []
-    
+
     # set up the key search paths
     if config.get('Key') is None :
         config['Key'] = {

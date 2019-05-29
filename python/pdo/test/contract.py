@@ -371,7 +371,7 @@ def UpdateTheContract(config, enclaves, contract, contract_invoker_keys) :
                         wait=30, dependency_list_commit_ids=commit_dependencies, use_ledger=use_ledger)
                     commit_dependencies = [commit_id]
                 except Exception as e:
-                    logger.exception('failed to asynchronously start replication and transaction submission:' + str(e))
+                    logger.error('failed to submit commit: %s', str(e))
                     ErrorShutdown()
 
                 logger.debug('update state')
