@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2020 Intel Corporation
+# Copyright 2018 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,21 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Usage ./gen_keys.sh <ip-address-of-CCF>
+PY3_VERSION=$(python --version | sed 's/Python 3\.\([0-9]\).*/\1/')
+if [[ $PY3_VERSION -lt 5 ]]; then
+    echo activate python3 first
+    exit 1
+fi
 
-# Copy KEYs
-cp ../CCF/build/workspace/pdo_tp_common/user0_privk.pem .
-cp ../CCF/build/workspace/pdo_tp_common/user0_cert.pem .
-cp ../CCF/build/workspace/pdo_tp_common/networkcert.pem .
+F_SERVICEHOME="$( cd -P "$( dirname ${BASH_SOURCE[0]} )/.." && pwd )"
+source ${F_SERVICEHOME}/bin/lib/pdo_common.sh
 
-# Copy the infra folder
-cp -r ../CCF/tests/infra infra
-
-# activate the env
-source ../CCF/build/env/bin/activate
-
-echo "issue rpc for generating ledger keys"
-python key_gen.py --host $1
-
-
-
+if [ -f ${F_SERVICEHOME}/run/cchost.pid ]; then
+    kill $(cat ${F_SERVICEHOME}/run/cchost.pid)
+fi
