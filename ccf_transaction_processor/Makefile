@@ -25,6 +25,12 @@ ifndef SGX_MODE
 $(error Incomplete configuration, SGX_MODE is not defined)
 endif
 
+ifdef NINJA_OPTION
+NINJA_J_OPTION = $(NINJA_OPTION)
+else
+NINJA_J_OPTION = 4
+endif
+
 SCRIPTDIR ?= $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 CCFDIR := $(SCRIPTDIR)/CCF
 DSTDIR ?= $(PDO_INSTALL_ROOT)
@@ -57,14 +63,14 @@ build-ccf :
 		-DBUILD_TESTS=OFF \
 		-DBUILD_UNIT_TESTS=OFF \
 		..
-	cd $(CCFDIR)/build; ninja; ninja install
+	cd $(CCFDIR)/build; ninja -j $(NINJA_J_OPTION); ninja install
 
 build-pdo-tp : install-ccf $(BLDDIR)
 	cd $(BLDDIR) ; cmake .. -GNinja \
 		-DCCF_DIR=${DSTDIR}/opt/pdo/ccf \
 		-DCOMPILE_TARGETS=virtual \
 		-DCMAKE_INSTALL_PREFIX=${DSTDIR}/opt/pdo/ccf
-	cd $(BLDDIR) ; ninja
+	cd $(BLDDIR) ; ninja -j $(NINJA_J_OPTION)
 
 clean : clean-build clean-install
 
@@ -77,8 +83,7 @@ clean-install :
 config : $(ETCDIR)/cchost.toml $(ETCDIR)/gov.lua
 
 $(ETCDIR)/cchost.toml : etc/cchost.toml
-	@ echo create configuration files for cchost
-	@ . $(abspath $(DSTDIR)/bin/activate) ; \
+	@ . $(abspath $(CCFDSTDIR)/bin/activate) ; \
 		$(CNFGEN) --template $(notdir $<) --template-directory $(dir $<) \
 			--output-directory $(dir $@) \
 			single --file $(notdir $@)
