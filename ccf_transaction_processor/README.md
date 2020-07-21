@@ -21,7 +21,7 @@ TP. Make sure the following env variables are defined:
 3) PDO_HOME : `export PDO_HOME=${PDO_INSTALL_ROOT}/opt/pdo/`.
 
 4) HOSTNAME : CCF's first node will be deployed at HOSTNAME:6006. One can simply set HOSTNAME to be the ip address
-of the VM that can be used to ping the VM from other machines.
+of the VM that can be used to ping the VM from other machines. For local testing, set HOSTNAME to `127.0.0.1`.
 
 5) PDO_ENCLAVE_CODE_SIGN_PEM : The PDO TP enclave app will be signed by the RSA private key
 who location is pointed to by this env variable. Note that this is the same key that will be
@@ -186,10 +186,11 @@ based PDO-TP deployment. The information below can be found at
 
 ```bash
 export PDO_LEDGER_TYPE=ccf
-export PDO_LEDGER_URL=http://ip-address:6006
+export PDO_LEDGER_URL=http://ccf-ip-address:6006
 ```
 
-Here, ip-address is the address of the node which hosts the CCF instance.
+Note that ccf-ip-address is the ip-address that was set in the env variable HOSTNAME (see above) during CCF
+deployment. 
 
 2. Set env PDO_LEDGER_KEY_ROOT, which denotes the directory location
     where save CCF's network certificate `networkcert.pem` and user keys
